@@ -8,6 +8,8 @@ const isDev = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_STOR
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
@@ -52,6 +54,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     ...authConfig.callbacks,
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (url.startsWith(baseUrl)) return url;
+      return `${baseUrl}/dashboard`;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.sub = user.id;

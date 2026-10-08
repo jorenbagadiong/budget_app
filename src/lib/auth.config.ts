@@ -1,6 +1,11 @@
 import type { NextAuthConfig } from 'next-auth';
 
 export const authConfig: NextAuthConfig = {
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
+  session: {
+    strategy: 'jwt',
+  },
   pages: {
     signIn: '/login',
   },
@@ -12,8 +17,13 @@ export const authConfig: NextAuthConfig = {
 
       if (isProtected) {
         if (isLoggedIn) return true;
-        return false; // Automatically redirects to pages.signIn
+        return false; // Automatically redirects to pages.signIn (/login)
       }
+
+      if (nextUrl.pathname === '/login' && isLoggedIn) {
+        return Response.redirect(new URL('/dashboard', nextUrl));
+      }
+
       return true;
     },
   },
