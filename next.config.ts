@@ -20,7 +20,25 @@ const cspHeader = `
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  poweredByHeader: false, // Prevents X-Powered-By header leakage
+  poweredByHeader: false,
+  allowedDevOrigins: [
+    '192.168.40.175',
+    '192.168.40.175:3000',
+    '192.168.40.175.nip.io',
+    '192.168.40.175.nip.io:3000',
+    'localhost:3000',
+  ],
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        '192.168.40.175:3000',
+        '192.168.40.175',
+        '192.168.40.175.nip.io:3000',
+        '192.168.40.175.nip.io',
+        'localhost:3000',
+      ],
+    },
+  },
   async headers() {
     return [
       {

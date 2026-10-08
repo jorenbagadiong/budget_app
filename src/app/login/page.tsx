@@ -28,11 +28,17 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [googleReady, setGoogleReady] = React.useState<boolean | null>(null);
   const [showGoogleGuide, setShowGoogleGuide] = React.useState(false);
+  const [isIpAddress, setIsIpAddress] = React.useState(false);
+  const [currentHostname, setCurrentHostname] = React.useState('');
 
   React.useEffect(() => {
     isGoogleConfigured().then((ready) => {
       setGoogleReady(ready);
     });
+    if (typeof window !== 'undefined') {
+      setCurrentHostname(window.location.hostname);
+      setIsIpAddress(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(window.location.hostname));
+    }
   }, []);
 
   React.useEffect(() => {
@@ -50,8 +56,17 @@ export default function LoginPage() {
 
   const handleGoogleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoadingGoogle(true);
     setErrorMessage(null);
+
+    if (isIpAddress) {
+      setErrorMessage(
+        `Google OAuth restricts raw IP addresses (${currentHostname}). Google requires a domain name like "http://${currentHostname}.nip.io:3000" or "http://localhost:3000". Please use the 1-Click Fast Test Sign-In below or switch to nip.io.`
+      );
+      setShowGoogleGuide(true);
+      return;
+    }
+
+    setLoadingGoogle(true);
     try {
       const result = await loginWithGoogle();
       if (result && result.error === 'GOOGLE_CREDENTIALS_MISSING') {
@@ -97,6 +112,27 @@ export default function LoginPage() {
             Production-quality personal budget & finance management
           </p>
         </div>
+        {/* LAN / Mobile Notice */}
+        {isIpAddress && (
+          <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-blue-950">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span>Mobile / LAN Access Detected ({currentHostname})</span>
+            </div>
+            <p className="leading-relaxed">
+              Google OAuth blocks raw IP addresses. To test immediately on this device, click the <strong>&quot;Sign in as User A&quot;</strong> button below (works 100% instantly).
+            </p>
+            <p className="text-[11px] text-blue-700">
+              To use real Google Sign-In on this device, visit:{' '}
+              <a
+                href={`http://${currentHostname}.nip.io:3000/login`}
+                className="font-mono underline font-bold"
+              >
+                http://{currentHostname}.nip.io:3000
+              </a>
+            </p>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMessage && (
@@ -164,25 +200,21 @@ export default function LoginPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleDevSubmit('userA')}
-                disabled={loadingUserA || loadingUserB}
-                className="w-full py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              <a
+                href="/api/auth/fast-login?account=userA"
+                className="w-full py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>{loadingUserA ? 'Signing in...' : 'Sign in as User A'}</span>
-              </button>
+                <span>Sign in as User A</span>
+              </a>
 
-              <button
-                type="button"
-                onClick={() => handleDevSubmit('userB')}
-                disabled={loadingUserA || loadingUserB}
-                className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              <a
+                href="/api/auth/fast-login?account=userB"
+                className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-                <span>{loadingUserB ? 'Signing in...' : 'Sign in as User B'}</span>
-              </button>
+                <span>Sign in as User B</span>
+              </a>
             </div>
 
             <p className="text-[11px] text-slate-500 text-center leading-relaxed">
