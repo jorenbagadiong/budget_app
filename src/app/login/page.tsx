@@ -9,13 +9,14 @@ import {
   CheckCircle,
   EyeOff,
   AlertCircle,
-  ArrowRight,
   UserCheck,
   Sparkles,
+  ExternalLink,
+  HelpCircle,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { loginWithGoogle, loginWithDevAccount } from './actions';
+import { loginWithGoogle, loginWithDevAccount, isGoogleConfigured } from './actions';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -25,11 +26,20 @@ export default function LoginPage() {
   const [loadingUserA, setLoadingUserA] = React.useState(false);
   const [loadingUserB, setLoadingUserB] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [googleReady, setGoogleReady] = React.useState<boolean | null>(null);
+  const [showGoogleGuide, setShowGoogleGuide] = React.useState(false);
+
+  React.useEffect(() => {
+    isGoogleConfigured().then((ready) => {
+      setGoogleReady(ready);
+    });
+  }, []);
 
   React.useEffect(() => {
     if (errorParam) {
       if (errorParam === 'OAuthSignin' || errorParam === 'OAuthCallback') {
-        setErrorMessage('Google OAuth error: Please verify your Google Client ID and Secret in .env.local.');
+        setErrorMessage('Google OAuth error: Please verify your Google Client ID, Client Secret, and redirect URI in Google Cloud Console.');
+        setShowGoogleGuide(true);
       } else if (errorParam === 'CredentialsSignin') {
         setErrorMessage('Unable to complete test login. Please try again.');
       } else {
@@ -43,10 +53,16 @@ export default function LoginPage() {
     setLoadingGoogle(true);
     setErrorMessage(null);
     try {
-      await loginWithGoogle();
+      const result = await loginWithGoogle();
+      if (result && result.error === 'GOOGLE_CREDENTIALS_MISSING') {
+        setErrorMessage(result.message);
+        setShowGoogleGuide(true);
+        setLoadingGoogle(false);
+      }
     } catch (err: any) {
       if (!err?.message?.includes('NEXT_REDIRECT')) {
         setErrorMessage(err?.message || 'Google sign in encountered an issue.');
+        setShowGoogleGuide(true);
         setLoadingGoogle(false);
       }
     }
@@ -61,7 +77,6 @@ export default function LoginPage() {
       await loginWithDevAccount(account);
     } catch (err: any) {
       if (!err?.message?.includes('NEXT_REDIRECT')) {
-        // If server action had an issue, fallback directly to the fast-login route
         window.location.href = `/api/auth/fast-login?account=${account}`;
       }
     }
@@ -85,14 +100,105 @@ export default function LoginPage() {
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">{errorMessage}</div>
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="font-semibold text-amber-950">Google Authorization Notice</div>
+              <div className="leading-relaxed">{errorMessage}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Google Cloud Setup Instructions Accordion/Box */}
+        {showGoogleGuide && (
+          <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-900 text-xs space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-blue-950">
+              <HelpCircle className="w-4 h-4 text-blue-600" />
+              <span>Fixing Google &quot;Access blocked: Authorization Error&quot;</span>
+            </div>
+            <p className="text-blue-800 leading-relaxed">
+              Google blocks authentication if real OAuth credentials are not registered in Google Cloud Console. To fix this:
+            </p>
+            <ol className="list-decimal pl-4 space-y-1 text-blue-900">
+              <li>
+                Open{' '}
+                <a
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline font-semibold"
+                >
+                  Google Cloud Console &gt; Credentials
+                </a>
+              </li>
+              <li>Create or edit an <strong>OAuth 2.0 Client ID</strong> (Web Application).</li>
+              <li>
+                Under <strong>Authorized redirect URIs</strong>, add exact URL:
+                <div className="font-mono bg-blue-100/80 px-2 py-0.5 rounded mt-0.5 text-blue-950 select-all">
+                  http://localhost:3000/api/auth/callback/google
+                </div>
+              </li>
+              <li>Under <strong>OAuth consent screen &gt; Test users</strong>, add your personal Gmail address.</li>
+              <li>
+                Save your Client ID &amp; Secret into <code className="font-mono">.env.local</code>.
+              </li>
+            </ol>
+            <p className="text-blue-800 pt-1 font-medium">
+              👉 Or use the <strong>1-Click Fast Test Sign-In</strong> below to test the full application immediately!
+            </p>
           </div>
         )}
 
         {/* Authentication Card */}
         <Card className="space-y-6 p-8">
+          {/* 1-Click Fast Test Sign-In Section (Placed on top for zero friction) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                1-Click Fast Test Sign-In
+              </span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200/60">
+                Works Offline / Instantly
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleDevSubmit('userA')}
+                disabled={loadingUserA || loadingUserB}
+                className="w-full py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>{loadingUserA ? 'Signing in...' : 'Sign in as User A'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDevSubmit('userB')}
+                disabled={loadingUserA || loadingUserB}
+                className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-blue-400" />
+                <span>{loadingUserB ? 'Signing in...' : 'Sign in as User B'}</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+              Provides two isolated test accounts with distinct Google <code className="font-mono text-[10px] bg-slate-100 px-1 py-0.5 rounded">sub</code> claims to test multi-tenant data isolation.
+            </p>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-400 font-semibold">Or use Google OAuth</span>
+            </div>
+          </div>
+
           {/* Google OAuth Section */}
           <div className="space-y-3">
             <form onSubmit={handleGoogleSubmit}>
@@ -123,45 +229,12 @@ export default function LoginPage() {
                 <span>Continue with Google</span>
               </Button>
             </form>
-          </div>
 
-          {/* Development / Multi-Tenant Fast Login */}
-          <div className="pt-4 border-t border-slate-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                1-Click Fast Test Sign-In
-              </span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200/60">
-                Instant Access
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleDevSubmit('userA')}
-                disabled={loadingUserA || loadingUserB}
-                className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{loadingUserA ? 'Signing in...' : 'Sign in as User A'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDevSubmit('userB')}
-                disabled={loadingUserA || loadingUserB}
-                className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-                <span>{loadingUserB ? 'Signing in...' : 'Sign in as User B'}</span>
-              </button>
-            </div>
-
-            <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-              Provides two isolated test accounts with distinct Google <code>sub</code> claims to test multi-tenant data isolation locally.
-            </p>
+            {googleReady === false && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg text-center leading-relaxed">
+                Notice: Real Google credentials are not set in <code className="font-mono">.env.local</code> yet. Clicking this requires Google Cloud configuration.
+              </p>
+            )}
           </div>
         </Card>
 
