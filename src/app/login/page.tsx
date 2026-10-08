@@ -43,8 +43,11 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (errorParam) {
-      if (errorParam === 'OAuthSignin' || errorParam === 'OAuthCallback') {
-        setErrorMessage('Google OAuth error: Please verify your Google Client ID, Client Secret, and redirect URI in Google Cloud Console.');
+      if (errorParam === 'OAuthSignin' || errorParam === 'OAuthCallback' || errorParam === 'Configuration') {
+        setErrorMessage('Google OAuth setup notice: Google requires "http://localhost:3000/api/auth/callback/google" in Authorized redirect URIs in Google Cloud Console. If you see redirect_uri_mismatch, ensure your redirect URI matches exactly.');
+        setShowGoogleGuide(true);
+      } else if (errorParam === 'AccessDenied') {
+        setErrorMessage('Access was denied. If using a Google Cloud test app, ensure your email is added under "Test users" in Google Cloud Console.');
         setShowGoogleGuide(true);
       } else if (errorParam === 'CredentialsSignin') {
         setErrorMessage('Unable to complete test login. Please try again.');

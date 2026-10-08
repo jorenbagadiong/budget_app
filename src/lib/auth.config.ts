@@ -8,6 +8,7 @@ export const authConfig: NextAuthConfig = {
   },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {

@@ -31,6 +31,8 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
+        'budget-app-one-livid.vercel.app',
+        '*.vercel.app',
         '192.168.40.175:3000',
         '192.168.40.175',
         '192.168.40.175.nip.io:3000',
